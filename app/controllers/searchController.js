@@ -32,6 +32,9 @@ module.exports.searchTree = async (req, res) => {
     try {
       const { rows } = await dbQuery.query(getUser, [key]);
       const dbResponse = rows;
+      for (let i = 0; i< dbResponse.length; i++){
+            dbResponse[i].profile_image = 'https://14treesplants.s3.ap-south-1.amazonaws.com/plants/' + dbResponse[i].profile_image + '.jpeg';
+        }
       successMessage.data = dbResponse;
       res.status(status.success).send(successMessage);
     } catch (error) {
