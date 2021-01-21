@@ -7,5 +7,6 @@ routes.get('/tree', search.searchTree);
 routes.get('/event', search.searchEvent);
 routes.get('/loc', search.searchLoc);
 routes.get('/getcount', search.getCountForQuery);
+routes.get('/getsearchlist', search.getSearchList);
 
 module.exports = routes;
