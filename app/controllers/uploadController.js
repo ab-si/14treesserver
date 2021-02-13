@@ -1,8 +1,7 @@
 const dbQuery  = require('../db/dev/dbQuery');
 var multer = require('multer')
 const util = require('util');
-const { promisify } = require('util');
-const creds = require('../client_credentials.json');
+// const creds = require('../client_credentials.json');
 const tree = require('./upload/uploadTree');
 const person = require('./upload/uploadPerson');
 const loc = require('./upload/uploadLoc');
