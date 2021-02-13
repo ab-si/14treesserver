@@ -1,4 +1,13 @@
 const dbQuery  = require('../db/dev/dbQuery');
+var multer = require('multer')
+const util = require('util');
+const { promisify } = require('util');
+const creds = require('../client_credentials.json');
+const tree = require('./upload/uploadTree');
+const person = require('./upload/uploadPerson');
+const loc = require('./upload/uploadLoc');
+const rec = require('./upload/uploadRec')
+
 const {
   errorMessage, successMessage, status,
 } = require('../helpers/status');
@@ -10,6 +19,7 @@ var time = moment();
 const {v4:uuid} = require('uuid');
 
 const Pool = require("pg").Pool;
+const { resolve } = require('path');
 require('dotenv').config();
 const pool = new Pool({
   user: process.env.DB_USER,
@@ -21,143 +31,99 @@ const pool = new Pool({
   connectionTimeoutMillis: 0,
 });
 
-module.exports.uploadUserCsv = async (req, res) => {
+var dest = '/Users/abhisheks/work/14treesserver/app/data/';
 
-    const insertUser = 'INSERT into person(id, name, date_added) values($1, $2, $3);';
-    let stream = fs.createReadStream('/Users/abhisheks/work/14treesserver/app/data/4jan.csv');
-    let csvData = [];
-    let csvStream = fastcsv
-    .parse()
-    .on("data", function(data) {
-        csvData.push(data[3]);
-    })
-    .on("end", function() {
-        // remove the first line: header
-        csvData.shift();
+var storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, dest)
+  },
+  filename: function (req, file, cb) {
+    cb(null, file.originalname )
+  }
+})
+var upload = multer({ storage: storage }).single('file')
 
-        var time_format = time.format('YYYY-MM-DD HH:mm:ss Z');
-
-        csvData.forEach(row => {
-            dbQuery.query(insertUser, [uuid(), row, time_format], (err, res) => {
-              if (err) {
-                console.log(err.stack);
-              } else {
-                console.log("inserted " + res.rowCount + " row:", row);
-              }
-            });
-          });
-    });
-
-    stream.pipe(csvStream);
+const writeFile = (file, data) => {
+  var csvStream = fastcsv.write(data, {
+      headers: true,
+      includeEndRowDelimiter: true,
+  });
+  csvStream
+  .on('finish', function(err){
+      console.log("File Written ! ")
+  })
+  .pipe(fs.createWriteStream(file, {flags:'a'}));
 }
 
-module.exports.uploadTreeCsv = async (req, res) => {
-//     INSERT INTO tree
-//          (sapling_id, name)
-//          SELECT 'tree-1', 'mango'
-//          WHERE
-//          NOT EXISTS (
-//         SELECT name FROM tree WHERE name = 'mango'
-//     );
-    const insertTree = 'INSERT into tree(id, sapling_id, name, date_added) values($1, $2, $3, $4);';
-    let stream = fs.createReadStream('/Users/abhisheks/work/14treesserver/app/data/4jan.csv');
+const readFile = (dest, file) => {
+  return new Promise((resolve, reject) => {
+    let headers = [];
+    let isHeaderSet = false
     let csvData = [];
-    let csvStream = fastcsv
-    .parse()
-    .on("data", function(data) {
-        csvData.push(data);
-    })
-    .on("end", function() {
-        // remove the first line: header
-        csvData.shift();
-
-        var time_format = time.format('YYYY-MM-DD HH:mm:ss Z');
-        csvData.forEach(row => {
-            dbQuery.query(insertTree, [uuid(), row[1], row[2], time_format], (err, res) => {
-              if (err) {
-                console.log(err.stack);
-              } else {
-                console.log("inserted " + res.rowCount + " row:", row);
-              }
-            });
-          });
-        // console.log(csvData)
-        // const { rows } = dbQuery.query(insertUser, [csvData, time_format]);
-        // console.log(rows)
-    });
-
-    stream.pipe(csvStream);
+    let csvStream = fastcsv.parseFile(dest+file ,{headers: false})
+      .on('data', function (row) {
+        csvStream.pause();
+        if (!isHeaderSet) {
+          headers.push(row);
+          headers[0].push('person_id')
+          headers[0].push('tree_id')
+          headers[0].push('loc_id')
+          headers[0].push('user_tree_rec_id')
+          isHeaderSet = true
+          // dataToWrite.push(headers[0])
+        } else {
+          csvData.push(row)
+        }
+        csvStream.resume();
+        })
+      .on('end', function() {
+        console.log("Data read complete from CSV!")
+        resolve([csvData, headers]);
+      })
+      .on('error', function(err) {
+        reject(err)
+      })
+  })
 }
 
-module.exports.uploadLocCsv = async(req, res) => {
-    const insertTree = 'INSERT into plot(plot_id, name) select $1, $2 where not exists (select name from plot where name = $3);';
-    let stream = fs.createReadStream('/Users/abhisheks/work/14treesserver/app/data/4jan.csv');
-    let csvData = [];
-    let csvStream = fastcsv
-    .parse()
-    .on("data", function(data) {
-        csvData.push(data);
-    })
-    .on("end", function() {
-        // remove the first line: header
-        csvData.shift();
-        pool.connect((err, client, done) => {
-          if (err) throw err;
-
-          try {
-            csvData.forEach(row => {
-              dbQuery.query(insertTree, [uuid(), row[6], row[6]], (err, res) => {
-                if (err) {
-                  console.log(err.stack);
-                } else {
-                  console.log("inserted " + res.rowCount + " row:", row);
-                }
-              });
-            });
-          } finally {
-            done();
-            res.status(status.success).send(successMessage);
-          }
-        });
-    });
-
-    stream.pipe(csvStream);
+const uploadCsvRecord = async(dest, file) => {
+  let data = await readFile(dest, file)
+  let csvData = data[0]
+  let dataToWrite = data[1]
+  let uuid;
+  for (const row of csvData) {
+    uuid = await person.UploadPerson(row)
+    row.push(uuid)
+    uuid = await tree.UploadTree(row)
+    row.push(uuid)
+    uuid = await loc.UploadLoc(row)
+    row.push(uuid)
+    uuid = await rec.UploadRec(row)
+    row.push(uuid)
+    dataToWrite.push(row)
+  }
+  return dataToWrite
 }
 
-module.exports.insertRecord = async(req, res) => {
+const addData = async(res) => {
+  const data = await uploadCsvRecord(dest, res.req.file.filename);
+  fs.unlinkSync(dest+res.req.file.filename);
+  writeFile(dest+res.req.file.filename, data)
+}
 
-    const insertTreeRec = 'INSERT into user_tree_reg(id, tree_id, person_id, loc_id, date) values ($1, $2, $3, (select plot_id from plot where name = $4), $5);';
-    let stream = fs.createReadStream('/Users/abhisheks/work/14treesserver/app/data/4jan_consolidated.csv');
-    let csvData = [];
-    let csvStream = fastcsv
-    .parse()
-    .on("data", function(data) {
-        csvData.push(data);
-    })
-    .on("end", function() {
-        // remove the first line: header
-        csvData.shift();
-        var time_format = time.format('YYYY-MM-DD HH:mm:ss Z');
-        // const event_id = 'd5727832-0543-4c37-a94e-b76935928aac';
-        pool.connect((err, client, done) => {
-          if (err) throw err;
-
-          try {
-            csvData.forEach(row => {
-              client.query(insertTreeRec, [uuid(), row[20], row[21], row[6], time_format], (err, res) => {
-                if (err) {
-                  console.log(err.stack);
-                } else {
-                  console.log("inserted " + res.rowCount + " row:", row[3]);
-                }
-              });
-            });
-          } finally {
-            done();
-            res.status(status.success).send(successMessage);
-          }
-        });
-    });
-
-    stream.pipe(csvStream);
+module.exports.uploadCsv = async(req, res) => {
+  upload(req, res, function (err) {
+    if (err instanceof multer.MulterError) {
+        return res.status(500).json(err)
+    } else if (err) {
+        return res.status(400).json(err)
+    } else {
+      try {
+        addData(res)
+      } catch (error) {
+        res.status(500);
+      }
+    }
+  })
+  res.status(status.success).send(successMessage);
 }
