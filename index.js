@@ -7,11 +7,11 @@ const cors = require('cors');
 const infoRoute = require('./app/routes/infoRoute');
 const searchRoute = require('./app/routes/searchRoute');
 const uploadRoute = require('./app/routes/uploadRoute');
+const loginRoute = require('./app/routes/loginRoute');
 
 const app = express();
 const port = process.env.PORT || "7000";
 
-// Add middleware for parsing URL encoded bodies (which are usually sent by browser)
 app.use(cors());
 // Add middleware for parsing JSON and urlencoded data and populating `req.body`
 app.use(express.urlencoded({ extended: false }));
@@ -28,6 +28,7 @@ app.use(function (req, res, next) {
 app.use('/api/v1', infoRoute);
 app.use('/api/v1/search', searchRoute);
 app.use('/api/v1/upload', uploadRoute);
+app.use('/api/v1/login', loginRoute);
 
 app.listen(port, () => {
     console.log(`Listening to requests on http://localhost:${port}`);

@@ -23,13 +23,13 @@ module.exports.getInfo = async (req, res) => {
     }
   };
 
-  module.exports.getUserTreeReg = async(req,res) => {
-    const query = 'SELECT * from user_tree_reg';
-    try {
-      const {rows} = await dbQuery.query(query);
-      console.log(rows)
-    } catch( error) {
-      errorMessage.error = 'An error Occured';
-      res.status(error).send(errorMessage);
-    }
+module.exports.getUserTreeReg = async(req,res) => {
+  const query = 'SELECT * from user_tree_reg';
+  try {
+    const {rows} = await dbQuery.query(query);
+    console.log(rows)
+  } catch( error) {
+    errorMessage.error = 'An error Occured';
+    res.status(error).send(errorMessage);
   }
+}
