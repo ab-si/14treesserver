@@ -6,6 +6,9 @@ const tree = require('./upload/uploadTree');
 const person = require('./upload/uploadPerson');
 const loc = require('./upload/uploadLoc');
 const rec = require('./upload/uploadRec')
+const event = require('./upload/uploadEvent')
+const { google } = require('googleapis')
+const { Sheets } = require("../helpers/auth");
 
 const {
   errorMessage, successMessage, status,
@@ -29,6 +32,29 @@ const pool = new Pool({
   idleTimeoutMillis: 0,
   connectionTimeoutMillis: 0,
 });
+
+function getData(auth) {
+  var sheets = google.sheets('v4');
+  sheets.spreadsheets.values.get({
+    auth: auth,
+    spreadsheetId: '1R6CyD_pPLcsah9rlPwJ4dqcLtzkptxJJCrm-dQBu6qM',
+    range: '4feb!A1:Z3', //Change Sheet1 if your worksheet's name is something else
+  }, (err, response) => {
+    if (err) {
+      console.log('The API returned an error: ' + err);
+      return;
+    } 
+    var rows = response.values;
+    if (rows.length === 0) {
+      console.log('No data found.');
+    } else {
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        console.log(row.join(", "));
+      }
+    }
+  });
+}
 
 var dest = '/Users/abhisheks/work/14treesserver/app/data/';
 
@@ -67,6 +93,7 @@ const readFile = (dest, file) => {
           headers[0].push('person_id')
           headers[0].push('tree_id')
           headers[0].push('loc_id')
+          headers[0].push('event_id')
           headers[0].push('user_tree_rec_id')
           isHeaderSet = true
           // dataToWrite.push(headers[0])
@@ -97,6 +124,8 @@ const uploadCsvRecord = async(dest, file) => {
     row.push(uuid)
     uuid = await loc.UploadLoc(row)
     row.push(uuid)
+    uuid = await event.UploadEvent(row)
+    row.push(uuid)
     uuid = await rec.UploadRec(row)
     row.push(uuid)
     dataToWrite.push(row)
@@ -104,7 +133,7 @@ const uploadCsvRecord = async(dest, file) => {
   return dataToWrite
 }
 
-const addData = async(res) => {
+const addDataFromCsv = async(res) => {
   const data = await uploadCsvRecord(dest, res.req.file.filename);
   fs.unlinkSync(dest+res.req.file.filename);
   writeFile(dest+res.req.file.filename, data)
@@ -118,11 +147,59 @@ module.exports.uploadCsv = async(req, res) => {
         return res.status(400).json(err)
     } else {
       try {
-        addData(res)
+        addDataFromCsv(res)
       } catch (error) {
         res.status(500);
       }
     }
   })
   res.status(status.success).send(successMessage);
+}
+
+module.exports.updateCsv = async(req, res) => {
+
+  const spreadsheetId = '1R6CyD_pPLcsah9rlPwJ4dqcLtzkptxJJCrm-dQBu6qM'
+  const sheetName = '4feb'
+  let data;
+
+  Sheets.spreadsheets.values.batchGet({
+    spreadsheetId: spreadsheetId,
+    // A1 notation of the values to retrieve  
+    ranges: [sheetName + '!A1:Z3'],
+    majorDimension: 'ROWS'
+    })
+    .then((resp) => {
+        data = resp.data.valueRanges;
+        data.forEach((range) => {
+            console.log(range);
+        });
+    })
+    .catch((err) => {
+        console.log(err);
+    });
+
+  Sheets.spreadsheets.values.append({
+      spreadsheetId: spreadsheetId,
+      range: 'Sheet1',
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      resource: {
+        values: [
+          [new Date().toISOString(), "Some value", "Another value"]
+        ],
+      },
+    }, (err, response) => {
+      if (err) return console.error(err)
+    });
+  res.status(200).json('Working')
+
+  // authentication.authenticated()
+  //   .then((auth) => {
+  //     res.status(200)
+  //     .json('Working')
+  //   })
+  //   .catch(err => {
+  //     res.status(401)
+  //     .json(`you know wetin happen, ${err}`)
+  //   })
 }
