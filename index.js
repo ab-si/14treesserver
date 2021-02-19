@@ -3,6 +3,7 @@
 const express = require('express');
 
 const cors = require('cors');
+const verifyToken = require('./app/auth/verifyToken');
 
 const infoRoute = require('./app/routes/infoRoute');
 const searchRoute = require('./app/routes/searchRoute');
@@ -25,10 +26,10 @@ app.use(function (req, res, next) {
     next();
 });
 
-app.use('/api/v1', infoRoute);
-app.use('/api/v1/search', searchRoute);
-app.use('/api/v1/upload', uploadRoute);
 app.use('/api/v1/login', loginRoute);
+app.use('/api/v1', verifyToken, infoRoute);
+app.use('/api/v1/search', verifyToken, searchRoute);
+app.use('/api/v1/upload', verifyToken, uploadRoute);
 
 app.listen(port, () => {
     console.log(`Listening to requests on http://localhost:${port}`);
