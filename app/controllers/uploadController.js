@@ -89,6 +89,33 @@ const readFile = (dest, file) => {
   })
 }
 
+const readFileForTree = (dest, file) => {
+  return new Promise((resolve, reject) => {
+    let headers = [];
+    let isHeaderSet = false
+    let csvData = [];
+    let csvStream = fastcsv.parseFile(dest+file ,{headers: false})
+      .on('data', function (row) {
+        csvStream.pause();
+        if (!isHeaderSet) {
+          headers.push(row);
+          headers[0].push('tree_id')
+          isHeaderSet = true
+        } else {
+          csvData.push(row)
+        }
+        csvStream.resume();
+        })
+      .on('end', function() {
+        console.log("Data read complete from CSV for Tree data!")
+        resolve([csvData, headers]);
+      })
+      .on('error', function(err) {
+        reject(err)
+      })
+  })
+}
+
 const uploadCsvRecord = async(dest, file) => {
   let data = await readFile(dest, file)
   let csvData = data[0]
@@ -110,13 +137,33 @@ const uploadCsvRecord = async(dest, file) => {
   return dataToWrite
 }
 
+const uploadTreeRecord = async(dest, file) => {
+  let data = await readFileForTree(dest, file)
+  let csvData = data[0]
+  let dataToWrite = data[1]
+  let uuid;
+  for (const row of csvData) {
+    uuid = await tree.UploadTree(row)
+    row.push(uuid)
+    dataToWrite.push(row)
+  }
+  return dataToWrite
+}
+
 const addDataFromCsv = async(file) => {
   const data = await uploadCsvRecord(dest, file);
   fs.unlinkSync(dest+file);
   writeFile(dest+file, data)
 }
 
+const addTreeFromcsv = async(file) => {
+  const data = await uploadTreeRecord(dest, file);
+  fs.unlinkSync(dest+file);
+  writeFile(dest+file, data)
+}
+
 module.exports.uploadCsv = async(req, res) => {
+
   upload(req, res, function (err) {
     if (err instanceof multer.MulterError) {
         return res.status(500).json(err)
@@ -160,4 +207,21 @@ module.exports.googleCsv = async(req, res) => {
     res.status(500);
   }
   res.status(200).json('Working')
+}
+
+module.exports.uploadTree = async(req, res ) => {
+  upload(req, res, function (err) {
+    if (err instanceof multer.MulterError) {
+        return res.status(500).json(err)
+    } else if (err) {
+        return res.status(400).json(err)
+    } else {
+      try {
+        addTreeFromcsv(res.req.file.filename)
+      } catch (error) {
+        res.status(500);
+      }
+    }
+  })
+  res.status(status.success).send(successMessage);
 }
