@@ -27,8 +27,8 @@ app.use(function (req, res, next) {
 });
 
 app.use('/api/v1/login', loginRoute);
+app.use('/api/v1/search', searchRoute);
 app.use('/api/v1', verifyToken, infoRoute);
-app.use('/api/v1/search', verifyToken, searchRoute);
 app.use('/api/v1/upload', verifyToken, uploadRoute);
 
 app.listen(port, () => {
