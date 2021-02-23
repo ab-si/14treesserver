@@ -15,3 +15,15 @@ module.exports.UploadLoc = async (row) => {
         return err
     }
   }
+
+module.exports.UploadLocForTree = async (row) => {
+
+    let newUUID = uuid();
+    try {
+        console.log(row)
+        let res = await dbQuery.query(insertLocQuery, [newUUID, row[3], row[3], row[3]])
+        return res.rows[0]['plot_id'];
+    } catch (err) {
+        return err
+    }
+}

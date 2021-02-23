@@ -100,6 +100,8 @@ const readFileForTree = (dest, file) => {
         if (!isHeaderSet) {
           headers.push(row);
           headers[0].push('tree_id')
+          headers[0].push('loc_id')
+          headers[0].push('rec_id')
           isHeaderSet = true
         } else {
           csvData.push(row)
@@ -144,6 +146,10 @@ const uploadTreeRecord = async(dest, file) => {
   let uuid;
   for (const row of csvData) {
     uuid = await tree.UploadTree(row)
+    row.push(uuid)
+    uuid = await loc.UploadLocForTree(row)
+    row.push(uuid)
+    uuid = await rec.UploadTreeLocRec(row)
     row.push(uuid)
     dataToWrite.push(row)
   }
