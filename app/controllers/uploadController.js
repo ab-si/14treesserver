@@ -43,6 +43,7 @@ var storage = multer.diskStorage({
     cb(null, file.originalname )
   }
 })
+
 var upload = multer({ storage: storage }).single('file')
 
 const writeFile = (file, data) => {
@@ -229,5 +230,13 @@ module.exports.uploadTree = async(req, res ) => {
       }
     }
   })
+  res.status(status.success).send(successMessage);
+}
+
+module.exports.uploadVisitor = async(req, res) => {
+  const files = req.files
+  const fields = req.body
+  console.log(files)
+  console.log(fields)
   res.status(status.success).send(successMessage);
 }
