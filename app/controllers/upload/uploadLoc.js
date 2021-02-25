@@ -5,6 +5,7 @@ var insertLocQuery = `with loc_insert as (INSERT into plot(plot_id, name)
  select $1, $2 where not exists (select * from plot where name=$3) returning plot.plot_id)
  select plot_id from loc_insert union select plot_id from plot where name=$4`
 
+var getLocQuery = `select loc_id from user_tree_reg where tree_id=$1`;
 module.exports.UploadLoc = async (row) => {
     
     let newUUID = uuid();
@@ -23,6 +24,15 @@ module.exports.UploadLocForTree = async (row) => {
         console.log(row)
         let res = await dbQuery.query(insertLocQuery, [newUUID, row[3], row[3], row[3]])
         return res.rows[0]['plot_id'];
+    } catch (err) {
+        return err
+    }
+}
+
+module.exports.GetLocID = async (tree_id) => {
+    try {
+        let res = await dbQuery.query(getLocQuery, [tree_id])
+        return res.rows[0]['loc_id'];
     } catch (err) {
         return err
     }

@@ -1,39 +1,30 @@
 const dbQuery  = require('../db/dev/dbQuery');
 var multer = require('multer')
-const util = require('util');
-// const creds = require('../client_credentials.json');
 const tree = require('./upload/uploadTree');
 const person = require('./upload/uploadPerson');
 const loc = require('./upload/uploadLoc');
 const rec = require('./upload/uploadRec')
 const event = require('./upload/uploadEvent')
-const { google } = require('googleapis')
 const { Sheets } = require("../helpers/auth");
+
+const fs = require("fs");
+const fastcsv = require("fast-csv");
+
+const { resolve } = require('path');
+const { CheckTreeEntry, CheckUserTreeEntry } = require('./upload/helper');
+require('dotenv').config();
+const AWS = require('aws-sdk');
+const s3 = new AWS.S3({
+  accessKeyId: process.env.ACCESS_KEY_ID_S3,
+  secretAccessKey: process.env.SECRET_ACCESS_KEY_S3
+});
 
 const {
   errorMessage, successMessage, status,
 } = require('../helpers/status');
 
-const fs = require("fs");
-const fastcsv = require("fast-csv");
-var moment = require('moment');
-var time = moment();
-const {v4:uuid} = require('uuid');
-
-const Pool = require("pg").Pool;
-const { resolve } = require('path');
-require('dotenv').config();
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_DATABASE,
-  password: process.env.DB_PASS,
-  port: process.env.DB_PORT,
-  idleTimeoutMillis: 0,
-  connectionTimeoutMillis: 0,
-});
-
 var dest = '/Users/abhisheks/work/14treesserver/app/data/';
+
 
 var storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -117,6 +108,91 @@ const readFileForTree = (dest, file) => {
         reject(err)
       })
   })
+}
+
+const uploadFileToS3 = async (src, filename, type) => {
+  const readStream = fs.createReadStream(src+filename);
+  let bucket;
+
+  if (type === "user") {
+    bucket = process.env.BUCKET_USERS
+  } else if (type === "extra") {
+    bucket = process.env.BUCKET_GALLERY
+  }
+  const params = {
+    Bucket: bucket,
+    Key: filename,
+    Body: readStream
+  };
+
+  try {
+    await s3.upload(params).promise();
+  } catch (error) {
+    return error
+  }
+}
+
+const insertUserTreeReg = async(fields) => {
+  let uImages;
+  let exImages;
+  uImages = fields.userImages.split(',');
+  exImages = fields.extraImages.split(',');
+  let uImagesForDB = "";
+  let exImagesForDB = "";
+  // let uImages=`'{`;
+  if (fields.userImages.length > 0) {
+    uImagesForDB = `{`;
+    uImages = fields.userImages.split(',');
+    // await uploadFileToS3(dest+'/images/', uImages, "user")
+  }
+
+  if (fields.extraImages.length > 0) {
+    exImagesForDB = `{`;
+    exImages = fields.extraImages.split(',');
+    // await uploadFileToS3(dest+'/images/', exImages, "extra")
+  }
+  try {
+    for (const image in uImages) {
+      uImagesForDB += '"' + uImages[image] + '"';
+      if (image < uImages.length-1) {
+        uImagesForDB += ','
+      }
+      await uploadFileToS3(dest+'/images/', uImages[image], 'user')      
+    }
+    uImagesForDB += `}`;
+    for (const image in exImages) {
+      exImagesForDB += '"' + exImages[image] + '"';
+      if (image < exImages.length-1) {
+        exImagesForDB += ','
+      }
+      await uploadFileToS3(dest+'/images/', exImages[image], 'extra')      
+    }
+    exImagesForDB += `}`;
+  } catch (error) {
+    console.log("errors")
+  }
+
+  let personData = Array(3).fill(" ");
+  personData.push(fields.name);
+  personData.push(fields.contact);
+  personData.push(fields.org);
+  personData.push(fields.email)
+
+  try {
+    let personUUID = await person.UploadPerson(personData);
+    let treeUUID = await tree.GetTreeID(fields.sapling);
+
+    let recData = [];
+    recData.push(personUUID);
+    recData.push(uImagesForDB);
+    recData.push(exImagesForDB);
+    recData.push(treeUUID);
+    await rec.UpdateRec(recData);
+  } catch (error) {
+    console.log(error)
+  }
+
+  return true
 }
 
 const uploadCsvRecord = async(dest, file) => {
@@ -236,7 +312,28 @@ module.exports.uploadTree = async(req, res ) => {
 module.exports.uploadVisitor = async(req, res) => {
   const files = req.files
   const fields = req.body
-  console.log(files)
-  console.log(fields)
-  res.status(status.success).send(successMessage);
+  try {
+    let treeExists = await CheckTreeEntry(fields.sapling)
+    if (!treeExists) {
+      res.statusMessage = "Invalid sapling ID provided!";
+      res.status(status.nocontent).end();
+    }
+
+    let userTreeExists = await CheckUserTreeEntry(fields.sapling)
+    if (!userTreeExists) {
+      res.statusMessage = "Record doesn't exists for the given sapling ID!";
+      res.status(status.duplicate).end();
+    }
+    
+    let insert = await insertUserTreeReg(fields);
+
+    if (insert) {
+      res.statusMessage = "Data uploaded successfully!"
+      res.status(status.success).end();
+    }
+    res.statusMessage = "Server error occured! Please contact admin!";
+    res.status(status.error).end();
+  } catch (error) {
+    console.log(error)
+  }
 }

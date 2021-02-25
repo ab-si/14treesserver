@@ -9,4 +9,5 @@ module.exports.status = {
   created: 201,
   bad: 400,
   nocontent: 204,
+  duplicate: 409,
 };
