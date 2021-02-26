@@ -2,6 +2,7 @@ const routes = require('express').Router();
 const { status } = require('../helpers/status');
 var jwt = require('jsonwebtoken');
 var bcrypt = require('bcryptjs');
+const verifyToken = require('../auth/verifyToken');
 require('dotenv').config();
 
 routes.post('/user', (req, res) => {
@@ -16,5 +17,9 @@ routes.post('/user', (req, res) => {
         res.status(status.unauthorized).send('Invalid credentials!');
     }
   });
+
+routes.post('/verifytoken', verifyToken, (req, res) => {
+    res.status(200).send('Successful token verification');
+})
 
 module.exports = routes;

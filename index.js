@@ -27,7 +27,6 @@ app.use(function (req, res, next) {
     next();
 });
 
-
 app.use('/api/v1/login', loginRoute);
 app.use('/api/v1/search', searchRoute);
 app.use('/api/v1/visitor', visitorRoute);
