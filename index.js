@@ -10,6 +10,7 @@ const searchRoute = require('./app/routes/searchRoute');
 const uploadRoute = require('./app/routes/uploadRoute');
 const loginRoute = require('./app/routes/loginRoute');
 const visitorRoute = require('./app/routes/visitorRoute');
+const getRoute = require('./app/routes/getRoute')
 
 const app = express();
 const port = process.env.PORT || "7000";
@@ -30,6 +31,7 @@ app.use(function (req, res, next) {
 app.use('/api/v1/login', loginRoute);
 app.use('/api/v1/search', searchRoute);
 app.use('/api/v1/visitor', visitorRoute);
+app.use('/api/v1/get', getRoute);
 app.use('/api/v1', verifyToken, infoRoute);
 app.use('/api/v1/upload', verifyToken, uploadRoute);
 
