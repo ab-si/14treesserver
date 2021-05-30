@@ -46,7 +46,6 @@ module.exports.getProfile = async(req,res) => {
             treeRes.push(treeObj);
         }
         successMessage.treesPlanted = treeRes;
-        console.log(successMessage);
         res.status(status.success).send(successMessage);
     } catch( error) {
         errorMessage.error = 'An error Occured';

@@ -11,7 +11,8 @@ const uploadRoute = require('./app/routes/uploadRoute');
 const loginRoute = require('./app/routes/loginRoute');
 const visitorRoute = require('./app/routes/visitorRoute');
 const getRoute = require('./app/routes/getRoute')
-const profileRoute = require('./app/routes/profileRoute')
+const profileRoute = require('./app/routes/profileRoute');
+const analyticsRoute = require('./app/routes/analyticsRoute');
 
 const app = express();
 const port = process.env.PORT || "7000";
@@ -33,6 +34,7 @@ app.use('/api/v1/login', loginRoute);
 app.use('/api/v1/search', searchRoute);
 app.use('/api/v1/visitor', visitorRoute);
 app.use('/api/v1/profile', profileRoute);
+app.use('/api/v1/analytics', analyticsRoute);
 app.use('/api/v1/get', getRoute);
 app.use('/api/v1/upload', verifyToken, uploadRoute);
 // app.use('/api/v1', verifyToken, infoRoute);
