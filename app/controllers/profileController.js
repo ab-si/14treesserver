@@ -42,6 +42,7 @@ module.exports.getProfile = async(req,res) => {
                     treeImages.push(treeImage)
                 }
             }
+            treeObj.location = JSON.stringify(trees.rows[tree].location);
             treeObj.memories = treeImages;
             treeRes.push(treeObj);
         }
