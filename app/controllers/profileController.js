@@ -7,6 +7,7 @@ const {
 
 module.exports.getProfile = async(req,res) => {
     let user_url = "https://14treesplants.s3.ap-south-1.amazonaws.com/users/";
+    let plants_url = "https://14treesplants.s3.ap-south-1.amazonaws.com/plants/";
     let getTreeQuery = 'SELECT id from tree where sapling_id=$1';
     let getUserQuery = 'SELECT * from person where id=(select person_id from user_tree_reg where tree_id=$1)';
     let getTreesQuery = 'select * from user_tree_reg where person_id=(select person_id from user_tree_reg where person_id=$1)';
@@ -44,6 +45,7 @@ module.exports.getProfile = async(req,res) => {
             }
             treeObj.location = JSON.stringify(trees.rows[tree].location);
             treeObj.memories = treeImages;
+            treeObj.image = plants_url + treeObj.image;
             treeRes.push(treeObj);
         }
         successMessage.treesPlanted = treeRes;
