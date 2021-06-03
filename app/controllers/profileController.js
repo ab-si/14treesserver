@@ -6,7 +6,7 @@ const {
 } = require('../helpers/status');
 
 module.exports.getProfile = async(req,res) => {
-    let user_url = "https://14treesplants.s3.ap-south-1.amazonaws.com/users/";
+    let user_url = "https://14treesplants.s3.ap-south-1.amazonaws.com/gallery/";
     let plants_url = "https://14treesplants.s3.ap-south-1.amazonaws.com/plants/";
     let getTreeQuery = 'SELECT id from tree where sapling_id=$1';
     let getUserQuery = 'SELECT * from person where id=(select person_id from user_tree_reg where tree_id=$1)';
